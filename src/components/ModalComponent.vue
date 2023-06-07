@@ -25,6 +25,8 @@
         showModal: Boolean,
     });
 
+    const emit = defineEmits(['close']);
+
     const isShow = ref(false);
     const isClose = ref(false);
 
@@ -48,6 +50,7 @@
      */
     function closeModal() {
         isClose.value = true;
+        emit('close');
     }
 
     function animationEnd() {

@@ -15,7 +15,8 @@ export const useContactStore = defineStore('contact', () => {
   // state
   const state = ref({
     contacts: [],
-    contact: {}
+    contact: {},
+    error: false,
   });
 
   // getters
@@ -25,6 +26,9 @@ export const useContactStore = defineStore('contact', () => {
     },
     getContact() {
       return state.value.contact;
+    },
+    getError() {
+      return state.value.error;
     }
   });
 
@@ -44,7 +48,9 @@ export const useContactStore = defineStore('contact', () => {
         .then(data => {
           mutations.value.setContacts(data);        
         })
-        .catch(err => console.log(err));
+        .catch(() => {
+          state.value = true;
+        });
     },
 
     async getContact(data) {
@@ -53,6 +59,9 @@ export const useContactStore = defineStore('contact', () => {
         .then(data => {
           mutations.value.setContact(data);
         })
+        .catch(() => {
+          state.value = true;
+        });
     },
 
     async createContact(data) {
@@ -66,11 +75,13 @@ export const useContactStore = defineStore('contact', () => {
           }
         }
       )
+      .catch(() => {
+        state.value = true;
+      });
     },
 
     async updateContact(data) {
       const contact = getters.value.getContact();
-      console.log(contact);
       await fetch(`${ baseUrl.value }/contacts/${contact.id}`, {
         method: httpMethods.value.PUT,
         body: JSON.stringify(data),
@@ -79,11 +90,17 @@ export const useContactStore = defineStore('contact', () => {
           'Content-Type': 'application/json',
         }
       })
+      .catch(() => {
+        state.value = true;
+      });
     },
 
     async deleteContact(data) {
       await fetch(`${baseUrl.value}/contacts/${data}`, {
         method: httpMethods.value.DELETE
+      })
+      .catch(() => {
+        state.value = true;
       });
     }
   });

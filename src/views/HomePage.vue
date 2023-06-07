@@ -1,31 +1,37 @@
 <template>
     <div>
-        <h1>Contact Management System</h1>
-        <button @click="showAddContactForm">Add Contact</button>
-        <div class="table">
-            <div class="table-row">
-                <!-- headers -->
-                <div class="table-headers">Id</div>
-                <div class="table-headers">Name</div>
-                <div class="table-headers">Email</div>
-                <div class="table-headers">Address</div>
-                <div class="table-headers">Contact Number</div>
-                <div class="table-headers">Actions</div>
-            </div>
-
-            <!-- contents -->
-            <div class="table-row" v-for="(contact, index) in contacts" :key="index">
-                <div class="table-columns">{{ contact.id }}</div>
-                <div class="table-columns">{{ contact.name }}</div>
-                <div class="table-columns">{{ contact.email }}</div>
-                <div class="table-columns">{{ contact.address }}</div>
-                <div class="table-columns">{{ contact['contact-number'] }}</div>
-                <div class="table-columns"><button class="button btn-edit" @click="showEditContactForm(contact.id)">Edit</button><button class="button btn-delete" @click="showConfirmationModal">Delete</button></div>
+        <AlertComponent :message="alertConfig.message" @close="onAlertClose" :isShow="alertConfig.showAlert" :success="alertConfig.success" :danger="alertConfig.danger"/>
+        <div class="container">
+            <h1>Contact Management System</h1>
+            <button class="button btn-add" @click="showAddContactForm">Add Contact</button>
+            <div class="table">
+                <div class="table-row">
+                    <!-- headers -->
+                    <div class="table-headers">Id</div>
+                    <div class="table-headers">Name</div>
+                    <div class="table-headers">Email</div>
+                    <div class="table-headers">Address</div>
+                    <div class="table-headers">Contact Number</div>
+                    <div class="table-headers">Actions</div>
+                </div>
+    
+                <!-- contents -->
+                <template v-if="contacts.length">
+                    <div class="table-row" v-for="(contact, index) in contacts" :key="index">
+                        <div class="table-columns">{{ contact.id }}</div>
+                        <div class="table-columns">{{ contact.name }}</div>
+                        <div class="table-columns">{{ contact.email }}</div>
+                        <div class="table-columns">{{ contact.address }}</div>
+                        <div class="table-columns">{{ contact['contact-number'] }}</div>
+                        <div class="table-columns"><button class="button btn-edit" @click="showEditContactForm(contact.id)">Edit</button><button class="button btn-delete" @click="showConfirmationModal(contact.id)">Delete</button></div>
+                    </div>
+                </template>
+                <div class="table-empty" v-if="!contacts.length">No records!</div>
             </div>
         </div>
 
         <!-- Add modal form -->
-        <ModalComponent :title="isEdit ? 'Edit Contact Form' : 'Add Contact Form'" :showModal="showAddForm">
+        <ModalComponent :title="isEdit ? 'Edit Contact Form' : 'Add Contact Form'" :showModal="showAddForm" @close="onModalClose">
             <form action="" class="add-form">
                 <label for="name">Name: </label>
                 <div>
@@ -57,7 +63,7 @@
         <ModalComponent title="Confirmation" :showModal="showConfirmation">
             <div class="confirmation-modal">
                 <span>Are you sure you want to delete this contact?</span>
-                <button type="button" class="button btn-m-ok">Ok</button>
+                <button type="button" class="button btn-m-ok" @click="deleteContact">Ok</button>
                 <button type="button" @click="closeModal" class="button btn-m-cancel">Cancel</button>
             </div>
         </ModalComponent>
@@ -66,22 +72,29 @@
 
 <script setup>
     import { ref, onMounted } from 'vue';
+    import validator from '@/validator/index';
     import { useContactStore } from '@/stores/contact';
     import ModalComponent from '@/components/ModalComponent.vue'
-    import validator from '@/validator/index';
+    import AlertComponent from '@/components/AlertComponent.vue'
 
-    const contactStore = useContactStore();
     const contacts = ref([]);
     const isEdit = ref(false);
     const showAddForm = ref(false);
     const showConfirmation  = ref(false);
+    const contactStore = useContactStore();
     const contactModel = ref({
         name: '',
         email: '',
         address: '',
         'contact-number': ''
     });
-    
+    const alertConfig = ref({
+        success: false,
+        danger: false,
+        showAlert: false,
+        message: ''
+    });
+
     // form validation
     const validation = ref({
         name: 'required',
@@ -109,8 +122,9 @@
         showAddForm.value = !showAddForm.value;
     }
 
-    function showConfirmationModal() {
+    async function showConfirmationModal(id) {
         showConfirmation.value = !showConfirmation.value;
+        await contactStore.actions.getContact(id);
     }
 
     async function showEditContactForm(id) {
@@ -135,6 +149,9 @@
             await contactStore.actions.createContact(contactModel.value);
             await contactStore.actions.getAllContacts();
             contacts.value = contactStore.getters.getContacts();
+            alertConfig.value.success = true;
+            alertConfig.value.showAlert = true;
+            alertConfig.value.message = 'Successfully created!';
             closeModal();
         }
     }
@@ -151,8 +168,35 @@
             await contactStore.actions.getAllContacts();
             contacts.value = contactStore.getters.getContacts();
             isEdit.value = false;
+            alertConfig.value.success = true;
+            alertConfig.value.showAlert = true;
+            alertConfig.value.message = 'Successfully updated!';
             closeModal();
         }
+    }
+
+    async function deleteContact() {
+        const contact = ref(contactStore.getters.getContact());
+        await contactStore.actions.deleteContact(contact.value.id);
+        await contactStore.actions.getAllContacts();
+        contacts.value = contactStore.getters.getContacts();
+        alertConfig.value.success = true;
+        alertConfig.value.showAlert = true;
+        alertConfig.value.message = 'Successfully deleted!';
+        closeModal();
+    }
+
+    function onModalClose() {
+        contactModel.value = {
+            name: '',
+            email: '',
+            address: '',
+            'contact-number': ''
+        }
+    }
+
+    function onAlertClose() {
+        alertConfig.value.showAlert = false;
     }
 </script>
 
@@ -232,7 +276,20 @@
     margin: 2px;
 }
 
-.btn-edit {
+.btn-edit, .btn-add {
     border: solid #00a6ff 2px;
+}
+
+.btn-add {
+    margin: 5px 0px;
+}
+
+.container {
+    padding: 20px;
+}
+
+.table-empty {
+    padding: 10px;
+    text-align: center;
 }
 </style>
